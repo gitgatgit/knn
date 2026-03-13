@@ -73,13 +73,13 @@ def NestedCrossVal(X, y, nFolds, listN, distances, mySeed):
 
             # Calculating scores for different values of k and distances
             for k in listN:
-                classifier = KNN(num_neighbors=k, distance='euclidean')
+                classifier = KNN(num_neighbours=k, distance='euclidean')
                 classifier.fit(X_outer_train[inner_train_indices], y_outer_train[inner_train_indices])
                 y_pred = classifier.predict(X_outer_train[inner_test_indices])
                 scoreA = accuracy(y_outer_train[inner_test_indices], y_pred)
                 fold_scores_k.append((float(scoreA), k))
 
-                classifierM = KNN(num_neighbors=k, distance='manhattan')
+                classifierM = KNN(num_neighbours=k, distance='manhattan')
                 classifierM.fit(X_outer_train[inner_train_indices], y_outer_train[inner_train_indices])
                 y_predM = classifierM.predict(X_outer_train[inner_test_indices])
                 scoreAM = accuracy(y_outer_train[inner_test_indices], y_predM)
@@ -92,10 +92,10 @@ def NestedCrossVal(X, y, nFolds, listN, distances, mySeed):
 
             #top k values and neighbour
             best_k = max(fold_scores_k, key=lambda x: x[0])
-            top_neighbor_E = fold_scores_k.index(best_k) + 1
+            top_neighbour_E = fold_scores_k.index(best_k) + 1
             
             best_k_m = max(fold_scores_k_m, key=lambda x: x[0])
-            top_neighbor_M = fold_scores_k_m.index(best_k_m) + 1
+            top_neighbour_M = fold_scores_k_m.index(best_k_m) + 1
 
             #############################################
 
@@ -106,9 +106,9 @@ def NestedCrossVal(X, y, nFolds, listN, distances, mySeed):
             classifier_best = KNN()
             # if top average score is equal to max average euclidean
             if best == avg_E:
-                classifier_best = KNN(num_neighbors=top_neighbor_E, distance='euclidean')
+                classifier_best = KNN(num_neighbours=top_neighbour_E, distance='euclidean')
             elif best == avg_M:
-                classifier_best = KNN(num_neighbors=top_neighbor_M, distance='manhattan')
+                classifier_best = KNN(num_neighbours=top_neighbour_M, distance='manhattan')
     
             #train classifier outer fold best values
             classifier_best.fit(X_outer_train, y_outer_train)
@@ -116,14 +116,14 @@ def NestedCrossVal(X, y, nFolds, listN, distances, mySeed):
             final_accuracy = accuracy(y_outer_test, y_pred_best)  
             inner_scores.append(final_accuracy)
 
-            optimal_k = max(top_neighbor_E, top_neighbor_M)
+            optimal_k = max(top_neighbour_E, top_neighbour_M)
         
 
             confusion_matrix = conf_mat(y_outer_test, y_pred_best)
             conf_list.append(confusion_matrix)
             
         #
-        if optimal_k == top_neighbor_E:
+        if optimal_k == top_neighbour_E:
             print('Final Accuracy:', np.round(final_accuracy, 6), optimal_k, 'euclidean')
         else:
             print('Final Accuracy:', np.round(final_accuracy, 6), optimal_k, 'manhattan')

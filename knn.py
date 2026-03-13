@@ -9,7 +9,9 @@ wine=datasets.load_wine()
 
 # this dataset has 13 features, we will only choose a subset of these
 df_wine = pd.DataFrame(wine.data, columns = wine.feature_names )
-selected_features = ['alcohol','flavanoids','color_intensity','ash']
+intensity_feature = next(col for col in df_wine.columns if col.endswith('_intensity'))
+df_wine = df_wine.rename(columns={intensity_feature: 'colour_intensity'})
+selected_features = ['alcohol','flavanoids','colour_intensity','ash']
 
 # extract the data as numpy arrays of features, X, and target, y
 X = df_wine[selected_features].values
@@ -47,7 +49,7 @@ class KNN():
     """
 
 
-    def __init__(self, num_neighbors=3, distance='euclidean'):
+    def __init__(self, num_neighbours=3, distance='euclidean'):
         """Inits KNN
         Args:
             num_neighbours: k-number of neighbours
@@ -58,7 +60,7 @@ class KNN():
         - None
         """
         #initialise neighbours
-        self.num_neighbors = num_neighbors
+        self.num_neighbours = num_neighbours
         #initialise distance
         self.distance = distance
 
@@ -122,9 +124,9 @@ class KNN():
         
         return distance
 
-    def neighbors(self, x):
+    def neighbours(self, x):
         """
-        Sorts the neighbors according to the distance function
+        Sorts the neighbours according to the distance function
 
         Params
         ------
@@ -132,7 +134,7 @@ class KNN():
 
         Returns
         ------
-        - list : sorted_neighbors
+        - list : sorted_neighbours
         
         """
         #Empty distances list
@@ -150,13 +152,13 @@ class KNN():
         #Sort distances
         sorted_indices = np.argsort(distances)
         #Sort according to num_neighbours
-        sorted_neighbors = [self.y_train[i] for i in sorted_indices[:self.num_neighbors]]
+        sorted_neighbours = [self.y_train[i] for i in sorted_indices[:self.num_neighbours]]
 
-        return sorted_neighbors
+        return sorted_neighbours
 
     def predict(self, X):
         """
-        Predicts the class neigbour belongs to
+        Predicts the class neighbour belongs to
 
         Params
         ---------
@@ -171,9 +173,9 @@ class KNN():
         predictions = []
         #Loop through neighbours, return most common value on each index
         for x in X:
-            neighbors = self.neighbors(x)
-            neighbor_counts = Counter(neighbors)
-            top = neighbor_counts.most_common(1)[0][0]
+            neighbours = self.neighbours(x)
+            neighbour_counts = Counter(neighbours)
+            top = neighbour_counts.most_common(1)[0][0]
             
             predictions.append(top)
             
