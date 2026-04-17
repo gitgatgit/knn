@@ -1,142 +1,101 @@
-import knn
+import numpy as np
+from knn import KNN, accuracy
+from confusion_matrix import conf_mat
+
 
 def NestedCrossVal(X, y, nFolds, listN, distances, mySeed):
     """
-    Nested cross validation
+    Nested cross-validation with inner hyperparameter search over k and distance metric.
 
-    Params 
+    Params
     ------
-
-    - X : array
-    - y : array
-    - nFolds : int
-    - listN : list
-    - distances : list 
-    - mySeed : int
+    X        : array, feature matrix
+    y        : array, labels
+    nFolds   : int, number of folds for both outer and inner CV
+    listN    : list of int, candidate k values
+    distances: list (unused — both euclidean and manhattan are always evaluated)
+    mySeed   : int, random seed
 
     Returns
-    ------
-    - float : accuracy
-    - array : confusion_matrix   
-    
+    -------
+    mean_outer_accuracy : float
+    deviation           : float
+    confusion_matrix    : ndarray (last outer fold)
     """
-    
 
     def kfold_indices(X, k):
-
-        """
-
-        Split dataset to indices
-
-        Params
-        ------
-        - X : array
-
-        Returns
-        ------
-        - list : folds
-
-        """
-        
         fold_size = len(X) // k
         np.random.seed(mySeed)
-        indices = np.random.permutation(np.arange(0, len(X), 1))
+        indices = np.random.permutation(np.arange(len(X)))
         folds = []
         for i in range(k):
             test_indices = indices[i * fold_size: (i + 1) * fold_size]
-            train_indices = np.concatenate([indices[:i * fold_size], indices[(i + 1) * fold_size:]])
+            train_indices = np.concatenate(
+                [indices[:i * fold_size], indices[(i + 1) * fold_size:]]
+            )
             folds.append((train_indices, test_indices))
         return folds
 
-    outer_k = nFolds
-    inner_k = nFolds
-
-    outer_fold_indices = kfold_indices(X, outer_k)
+    outer_fold_indices = kfold_indices(X, nFolds)
     mean_scores = []
-
-    
+    confusion_matrix = None
 
     for outer_train_indices, outer_test_indices in outer_fold_indices:
-        
-        X_outer_train, y_outer_train = X[outer_train_indices], y[outer_train_indices]
-        X_outer_test, y_outer_test = X[outer_test_indices], y[outer_test_indices]
+        X_outer_train = X[outer_train_indices]
+        y_outer_train = y[outer_train_indices]
+        X_outer_test = X[outer_test_indices]
+        y_outer_test = y[outer_test_indices]
 
         inner_scores = []
-        inner_fold_indices = kfold_indices(X_outer_train, inner_k)
-        
+        inner_fold_indices = kfold_indices(X_outer_train, nFolds)
         conf_list = []
-        
+
         for inner_train_indices, inner_test_indices in inner_fold_indices:
-            
-            fold_scores_k = []
-            fold_scores_k_m = []
+            fold_scores_e = []
+            fold_scores_m = []
 
-            # Calculating scores for different values of k and distances
             for k in listN:
-                classifier = KNN(num_neighbours=k, distance='euclidean')
-                classifier.fit(X_outer_train[inner_train_indices], y_outer_train[inner_train_indices])
-                y_pred = classifier.predict(X_outer_train[inner_test_indices])
-                scoreA = accuracy(y_outer_train[inner_test_indices], y_pred)
-                fold_scores_k.append((float(scoreA), k))
+                clf_e = KNN(num_neighbours=k, distance='euclidean')
+                clf_e.fit(X_outer_train[inner_train_indices], y_outer_train[inner_train_indices])
+                y_pred_e = clf_e.predict(X_outer_train[inner_test_indices])
+                fold_scores_e.append((float(accuracy(y_outer_train[inner_test_indices], y_pred_e)), k))
 
-                classifierM = KNN(num_neighbours=k, distance='manhattan')
-                classifierM.fit(X_outer_train[inner_train_indices], y_outer_train[inner_train_indices])
-                y_predM = classifierM.predict(X_outer_train[inner_test_indices])
-                scoreAM = accuracy(y_outer_train[inner_test_indices], y_predM)
-                fold_scores_k_m.append((float(scoreAM), k))
+                clf_m = KNN(num_neighbours=k, distance='manhattan')
+                clf_m.fit(X_outer_train[inner_train_indices], y_outer_train[inner_train_indices])
+                y_pred_m = clf_m.predict(X_outer_train[inner_test_indices])
+                fold_scores_m.append((float(accuracy(y_outer_train[inner_test_indices], y_pred_m)), k))
 
+            avg_e = np.mean([s for s, _ in fold_scores_e])
+            avg_m = np.mean([s for s, _ in fold_scores_m])
 
-            #average scores
-            avg_E = np.mean([i[0] for i in fold_scores_k])
-            avg_M = np.mean([i[0] for i in fold_scores_k_m])
+            best_k_e = max(fold_scores_e, key=lambda x: x[0])
+            top_neighbour_e = fold_scores_e.index(best_k_e) + 1
 
-            #top k values and neighbour
-            best_k = max(fold_scores_k, key=lambda x: x[0])
-            top_neighbour_E = fold_scores_k.index(best_k) + 1
-            
-            best_k_m = max(fold_scores_k_m, key=lambda x: x[0])
-            top_neighbour_M = fold_scores_k_m.index(best_k_m) + 1
+            best_k_m = max(fold_scores_m, key=lambda x: x[0])
+            top_neighbour_m = fold_scores_m.index(best_k_m) + 1
 
-            #############################################
+            if avg_e >= avg_m:
+                best_clf = KNN(num_neighbours=top_neighbour_e, distance='euclidean')
+                optimal_k = top_neighbour_e
+                best_dist = 'euclidean'
+            else:
+                best_clf = KNN(num_neighbours=top_neighbour_m, distance='manhattan')
+                optimal_k = top_neighbour_m
+                best_dist = 'manhattan'
 
-            #print(avg_E, avg_M)
-
-            best = max(avg_E, avg_M)
-            #print(best)
-            classifier_best = KNN()
-            # if top average score is equal to max average euclidean
-            if best == avg_E:
-                classifier_best = KNN(num_neighbours=top_neighbour_E, distance='euclidean')
-            elif best == avg_M:
-                classifier_best = KNN(num_neighbours=top_neighbour_M, distance='manhattan')
-    
-            #train classifier outer fold best values
-            classifier_best.fit(X_outer_train, y_outer_train)
-            y_pred_best = classifier_best.predict(X_outer_test)
-            final_accuracy = accuracy(y_outer_test, y_pred_best)  
+            best_clf.fit(X_outer_train, y_outer_train)
+            y_pred_best = best_clf.predict(X_outer_test)
+            final_accuracy = accuracy(y_outer_test, y_pred_best)
             inner_scores.append(final_accuracy)
-
-            optimal_k = max(top_neighbour_E, top_neighbour_M)
-        
 
             confusion_matrix = conf_mat(y_outer_test, y_pred_best)
             conf_list.append(confusion_matrix)
-            
-        #
-        if optimal_k == top_neighbour_E:
-            print('Final Accuracy:', np.round(final_accuracy, 6), optimal_k, 'euclidean')
-        else:
-            print('Final Accuracy:', np.round(final_accuracy, 6), optimal_k, 'manhattan')
 
-        # Calculate the mean accuracy across all inner folds
-        mean_inner_accuracy = np.mean(inner_scores)
-        mean_scores.append(mean_inner_accuracy)
-        
+        print(f'Final Accuracy: {np.round(final_accuracy, 6)}  k={optimal_k}  {best_dist}')
+
+        mean_scores.append(np.mean(inner_scores))
 
     mean_outer_accuracy = np.mean(mean_scores)
     deviation = np.std(mean_scores)
 
-    
-    
-    return np.round(mean_outer_accuracy, 6), np.round(deviation, 6), confusion_matrix#, confusion_matrix
-    
+    return np.round(mean_outer_accuracy, 6), np.round(deviation, 6), confusion_matrix
